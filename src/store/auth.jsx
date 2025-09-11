@@ -1,55 +1,72 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { Api, USE_MOCK } from "../lib/api.js";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Api } from "../lib/api.js";
 
-const AuthCtx = createContext(null);
-export const useAuth = () => useContext(AuthCtx);
+const AUTH_KEY = "vw_auth";
+
+const USE_MOCK =
+  String(import.meta.env.VITE_USE_MOCK_API ?? "true").toLowerCase() !== "false";
+
+const MOCK_USERS = {
+  admin: { password: "admin123", role: "admin" },
+  viewer: { password: "viewer123", role: "viewer" },
+};
+
+const Ctx = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);      // {name, role}
-  const [loading, setLoading] = useState(true); // true until /me resolves
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const me = await Api.me();
-        if (!alive) return;
-        if (me && me.authenticated) setUser({ name: me.name, role: me.role });
-        else setUser(null);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+    try {
+      if (user) localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+      else localStorage.removeItem(AUTH_KEY);
+    } catch {}
+  }, [user]);
 
   const login = async ({ username, password }) => {
-    const res = await Api.login({ username, password });
-    setUser({ name: res.name, role: res.role });
-    return res;
+    const u = String(username || "").trim().toLowerCase();
+
+    if (USE_MOCK) {
+      const rec = MOCK_USERS[u];
+      if (!rec || rec.password !== String(password || "")) {
+        throw new Error("Invalid credentials");
+      }
+      setUser({ username: u, role: rec.role, token: "mock" });
+      return;
+    }
+
+    
+    const res = await Api.login(username, password); 
+    setUser({
+      username: res.username ?? username,
+      role: res.role,
+      token: res.token,
+    });
   };
 
-  const logout = async () => {
-    try { await Api.logout(); } catch {}
-    setUser(null);
-  };
+  const logout = () => setUser(null);
 
-  return (
-    <AuthCtx.Provider
-      value={{
-        user,
-        role: user?.role || null,
-        isAuthenticated: !!user,
-        loading,
-        login,
-        logout,
-        useMock: USE_MOCK,
-      }}
-    >
-      {children}
-    </AuthCtx.Provider>
+  const value = useMemo(
+    () => ({
+      login,
+      logout,
+      isAuthenticated: !!user,
+      role: user?.role ?? "viewer",
+      username: user?.username ?? "",
+      token: user?.token ?? "",
+      useMock: USE_MOCK,
+    }),
+    [user]
   );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
+
+export const useAuth = () => useContext(Ctx);
