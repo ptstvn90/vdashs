@@ -18,7 +18,7 @@ export default function Topbar({ onToggleTheme }) {
           onClick={() => nav("/play")}
           title="Go to Player"
         >
-          🖥️ DevSecOps Wall
+          🖥️ Traffic Monitoring Wall
         </div>
 
         
