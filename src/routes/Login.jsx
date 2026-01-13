@@ -58,7 +58,7 @@ export default function Login() {
       {/* Centered content */}
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
         <a href="/" className="mb-6 text-2xl font-semibold text-white">
-          DevSecOps Wall
+          Traffic Monitoring Wall
         </a>
 
         <div className="w-full max-w-md rounded-2xl border border-white/20 bg-white/85 dark:bg-gray-900/80 backdrop-blur-md shadow-2xl">
